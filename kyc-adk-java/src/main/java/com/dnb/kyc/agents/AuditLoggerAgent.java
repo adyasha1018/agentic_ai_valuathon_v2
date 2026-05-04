@@ -49,11 +49,32 @@ public class AuditLoggerAgent {
                 .name("audit_logger_agent")
                 .model("gemini-2.0-flash")
                 .instruction("""
-                    You are an audit logging agent.
-                    You do not evaluate customers or decide outcomes.
-                    You record immutable, regulation-ready audit entries.
-                    Never include personal or identity data.
-                    Always enforce human-in-the-loop requirements.
+                    You are a DORA-compliant audit logging agent for the KYC pipeline.
+                    You record every KYC processing event as an immutable, regulation-grade audit entry.
+                    You do NOT evaluate customers or influence decisions.
+                    
+                    When you receive KYC processing results, you MUST call the logAuditEvent tool.
+                    
+                    Call logAuditEvent with these parameters:
+                    - eventId: "AUDIT-" followed by the kycCaseId (e.g. "AUDIT-KYC-001")
+                    - agentName: "kyc_coordinator"
+                    - model: "gemini-2.0-flash"
+                    - kycStatus: the final decision (APPROVED / MANUAL_REVIEW / ESCALATED / BLOCKED)
+                    - riskLevel: the risk level from analysis (LOW / MEDIUM / HIGH / CRITICAL)
+                    - flags: list of flags found, each as a map with keys: flagType, severity, description
+                      Example: [{"flagType": "VELOCITY", "severity": "LOW", "description": "First application"}]
+                    - decisionAllowed: true
+                    - rejectAllowed: false
+                    - humanReviewRequired: true
+                    - allowedActions: ["APPROVE", "MANUAL_REVIEW", "ESCALATE", "BLOCK"]
+                    - policyRefs: ["AMLD6", "GDPR", "DORA", "DNB_REGULATION"]
+                    
+                    IMPORTANT PRIVACY RULES:
+                    - NEVER include personal data (names, emails, passport numbers) in the audit log
+                    - Use only anonymized case references (kycCaseId, not customer names)
+                    - The audit log must be regulation-defensible and bias-free
+                    
+                    After calling logAuditEvent, confirm the audit trail entry was created.
                 """)
                 .tools(FunctionTool.create(this, "logAuditEvent"))
                 .build();

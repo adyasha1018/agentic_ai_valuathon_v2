@@ -96,9 +96,36 @@ public final class EnrichmentPrompts {
      * Returns the complete prompt for the Enrichment Agent.
      */
     public static String getFullPrompt() {
-        return KYC_ENRICHMENT_AGENT_PROMPT + ENRICHMENT_RULES + BEHAVIORAL_PRINCIPLES;
+        return KYC_ENRICHMENT_AGENT_PROMPT + ENRICHMENT_RULES + BEHAVIORAL_PRINCIPLES + TOOL_USAGE;
     }
 
+    /**
+     * Tool usage instructions — tells the LLM which tools to call.
+     */
+    public static final String TOOL_USAGE = """
+        
+        TOOL USAGE — When you receive KYC profile data, call these tools:
+        
+        1. Call lookupCountryData(countryCode) for each country code found in the profile.
+           Look for: nationality field, residentialAddress.country field.
+           This retrieves official country risk and regulatory data.
+        
+        2. Call estimateIncomeRange(occupation, country) if occupation or employment info is present.
+           Extract occupation from employmentInfo.occupation or jobTitle fields.
+           Use the nationality or residential country as the country argument.
+           This provides SOFT income estimation from official salary surveys.
+        
+        3. Call verifyEmployment(employer, country) if employer name is available.
+           Extract from employmentInfo.employer or employer fields.
+           This performs SOFT employment verification from business registries.
+        
+        After calling all applicable tools, summarize:
+        - Which fields were enriched and from which official source
+        - Confidence level for each enrichment (HIGH or MEDIUM only)
+        - Any fields that could not be enriched and why
+        
+        If no enrichment tools apply to the profile, state which fields are already complete.
+        """;
     /**
      * Prompt for Netherlands-specific enrichment (KvK).
      */

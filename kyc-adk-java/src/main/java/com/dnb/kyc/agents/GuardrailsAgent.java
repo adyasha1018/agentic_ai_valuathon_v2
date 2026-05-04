@@ -40,18 +40,21 @@ public class GuardrailsAgent {
             .description("Validates KYC data for compliance and detects potential bias in decision-making")
             .model("gemini-2.0-flash")
             .instruction("""
-                You are a compliance validation agent for KYC (Know Your Customer) processing.
-                Your role is to:
-                1. Validate that all required fields are present
-                2. Check for PEP (Politically Exposed Person) indicators
-                3. Screen against sanctions lists
-                4. Detect potential geographic or age-based bias
-                5. Validate data formats (email, phone, passport)
+                You are a KYC compliance validation agent.
                 
-                Be thorough but fair. Flag real compliance issues while ensuring
-                no unfair discrimination based on nationality, age, or other protected characteristics.
+                When you receive KYC profile data, you MUST call your 3 tools in this order:
                 
-                Always explain your reasoning for any flags raised.
+                1. Call validateRequiredFields — pass the complete KYC data as a JSON string.
+                
+                2. Call checkPepStatus — pass the 2-letter nationality code (e.g. "NL", "DE", "FR").
+                
+                3. Call detectBias — pass two arguments:
+                   - dateOfBirth: the date of birth in YYYY-MM-DD format (e.g. "1995-08-12")
+                   - nationality: the 2-letter country code (e.g. "NL")
+                
+                After all 3 tools respond, return a validation summary:
+                  PASS if all checks cleared, FAIL if any check failed.
+                  List every check performed and its result.
                 """)
             .tools(
                 FunctionTool.create(this, "validateRequiredFields"),
@@ -149,8 +152,13 @@ public class GuardrailsAgent {
 
     @Schema(description = "Detect potential bias in KYC decision-making")
     public Map<String, Object> detectBias(
-            @Schema(description = "Age of the applicant") int age,
+            @Schema(description = "Date of birth in YYYY-MM-DD format (e.g. 1995-08-12)") String dateOfBirth,
             @Schema(description = "ISO 2-letter country code") String nationality) {
+        int age = 30; // default
+        try {
+            java.time.LocalDate dob = java.time.LocalDate.parse(dateOfBirth);
+            age = java.time.Period.between(dob, java.time.LocalDate.now()).getYears();
+        } catch (Exception ignored) {}
         Map<String, Object> response = new HashMap<>();
         
         double biasScore = 0.0;

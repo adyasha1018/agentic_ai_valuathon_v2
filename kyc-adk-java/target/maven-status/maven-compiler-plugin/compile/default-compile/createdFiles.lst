@@ -6,6 +6,7 @@ com/dnb/kyc/agents/EnrichmentAgent.class
 com/dnb/kyc/model/FraudRiskReport$Action.class
 com/dnb/kyc/agents/enrichment/PolicyViolation.class
 com/dnb/kyc/util/HashUtil.class
+com/dnb/kyc/KycDevServer.class
 com/dnb/kyc/model/FraudRiskReport$RiskLevel.class
 com/dnb/kyc/model/KycResult.class
 com/dnb/kyc/model/KycProfile.class

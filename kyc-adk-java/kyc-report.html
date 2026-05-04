@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>KYC Processing Report — D&B Agentic AI</title>
+  <style>
+    :root {
+      --primary: #1a237e;
+      --accent:  #1565c0;
+      --green:   #2e7d32;
+      --orange:  #e65100;
+      --red:     #b71c1c;
+      --purple:  #6a1b9a;
+      --bg:      #f4f6fb;
+      --card:    #ffffff;
+      --border:  #e0e4ef;
+      --text:    #1a1a2e;
+      --muted:   #5a6484;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); }
+
+    /* ── HEADER ── */
+    header {
+      background: linear-gradient(135deg, var(--primary) 0%, #283593 60%, var(--accent) 100%);
+      color: #fff; padding: 32px 48px; display: flex; justify-content: space-between; align-items: center;
+    }
+    header .brand { display: flex; align-items: center; gap: 16px; }
+    header .brand .logo { font-size: 2rem; font-weight: 900; letter-spacing: -1px; }
+    header .brand .sub { font-size: 0.85rem; opacity: 0.75; margin-top: 4px; }
+    header .meta { text-align: right; font-size: 0.82rem; opacity: 0.8; line-height: 1.6; }
+    header .meta strong { font-size: 1rem; opacity: 1; }
+
+    /* ── VERDICT BANNER ── */
+    .verdict {
+      background: #e8f5e9; border-left: 6px solid var(--green);
+      margin: 28px 48px 0; padding: 20px 28px; border-radius: 8px;
+      display: flex; align-items: center; gap: 18px;
+    }
+    .verdict .icon { font-size: 2.4rem; }
+    .verdict .label { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); }
+    .verdict .decision { font-size: 1.6rem; font-weight: 800; color: var(--green); }
+    .verdict .case-info { margin-left: auto; text-align: right; font-size: 0.88rem; color: var(--muted); line-height: 1.8; }
+    .verdict .case-info strong { color: var(--text); }
+    .verdict.manual   { background: #fff8e1; border-color: #f9a825; }
+    .verdict.manual .decision { color: #f57f17; }
+    .verdict.escalate { background: #fff3e0; border-color: #e65100; }
+    .verdict.escalate .decision { color: var(--orange); }
+    .verdict.block    { background: #ffebee; border-color: var(--red); }
+    .verdict.block .decision { color: var(--red); }
+
+    /* ── LAYOUT ── */
+    main { padding: 28px 48px 48px; display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+    .full { grid-column: 1 / -1; }
+
+    /* ── CARD ── */
+    .card {
+      background: var(--card); border: 1px solid var(--border); border-radius: 10px;
+      padding: 22px 26px; box-shadow: 0 1px 4px rgba(0,0,0,.06);
+    }
+    .card-header {
+      display: flex; align-items: center; gap: 10px;
+      margin-bottom: 18px; padding-bottom: 14px; border-bottom: 1px solid var(--border);
+    }
+    .card-header .icon { font-size: 1.3rem; }
+    .card-header .title { font-size: 1rem; font-weight: 700; }
+    .card-header .badge {
+      margin-left: auto; font-size: 0.72rem; font-weight: 700; padding: 3px 10px;
+      border-radius: 20px; text-transform: uppercase; letter-spacing: .5px;
+    }
+    .badge-pass    { background: #e8f5e9; color: var(--green); }
+    .badge-fail    { background: #ffebee; color: var(--red); }
+    .badge-medium  { background: #fff8e1; color: #f57f17; }
+    .badge-low     { background: #e8f5e9; color: var(--green); }
+    .badge-high    { background: #ffebee; color: var(--red); }
+    .badge-logged  { background: #ede7f6; color: var(--purple); }
+
+    /* ── KV TABLE ── */
+    .kv { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    .kv tr { border-bottom: 1px solid #f0f2f8; }
+    .kv tr:last-child { border-bottom: none; }
+    .kv td { padding: 7px 4px; }
+    .kv td:first-child { color: var(--muted); width: 44%; font-size: 0.82rem; }
+    .kv td:last-child  { font-weight: 600; }
+
+    /* ── TOOL STEPS ── */
+    .steps { list-style: none; }
+    .steps li {
+      display: flex; gap: 12px; align-items: flex-start;
+      padding: 10px 0; border-bottom: 1px solid #f0f2f8; font-size: 0.86rem;
+    }
+    .steps li:last-child { border-bottom: none; }
+    .step-num {
+      min-width: 24px; height: 24px; border-radius: 50%; background: var(--accent);
+      color: #fff; font-weight: 700; font-size: 0.72rem; display: flex;
+      align-items: center; justify-content: center; flex-shrink: 0; margin-top: 1px;
+    }
+    .step-name { font-weight: 700; color: var(--accent); font-family: monospace; font-size: 0.9rem; }
+    .step-result { color: var(--muted); margin-top: 3px; font-size: 0.82rem; }
+
+    /* ── RISK METER ── */
+    .risk-row { display: flex; align-items: center; gap: 12px; margin: 10px 0; }
+    .risk-bar-wrap { flex: 1; background: #eef0f8; border-radius: 20px; height: 10px; overflow: hidden; }
+    .risk-bar { height: 100%; border-radius: 20px; }
+    .risk-label { font-size: 0.78rem; font-weight: 700; min-width: 52px; text-align: right; }
+    .bar-low      { background: var(--green); }
+    .bar-medium   { background: #f9a825; }
+    .bar-high     { background: #e64a19; }
+    .bar-critical { background: var(--red); }
+
+    /* ── HASH CHAIN ── */
+    .hash-chain { font-family: monospace; font-size: 0.78rem; background: #1a1a2e;
+      color: #a5d6a7; border-radius: 8px; padding: 16px; line-height: 2; overflow-x: auto; }
+    .hash-key { color: #90caf9; }
+    .hash-val { color: #fff9c4; }
+
+    /* ── PIPELINE TIMELINE ── */
+    .timeline { display: flex; align-items: flex-start; gap: 0; }
+    .t-step { flex: 1; text-align: center; position: relative; }
+    .t-step:not(:last-child)::after {
+      content: ''; position: absolute; top: 22px; left: 50%; width: 100%;
+      height: 2px; background: linear-gradient(90deg, var(--accent), #90caf9); z-index: 0;
+    }
+    .t-icon {
+      width: 44px; height: 44px; border-radius: 50%; font-size: 1.2rem;
+      display: flex; align-items: center; justify-content: center;
+      margin: 0 auto 8px; position: relative; z-index: 1; border: 2px solid var(--border);
+    }
+    .t-icon.done  { background: var(--green); border-color: var(--green); }
+    .t-icon.warn  { background: #f9a825;      border-color: #f9a825; }
+    .t-name { font-size: 0.72rem; font-weight: 700; color: var(--muted); }
+    .t-status { font-size: 0.68rem; margin-top: 3px; }
+    .t-status.ok   { color: var(--green); }
+    .t-status.warn { color: #f57f17; }
+
+    /* ── FOOTER ── */
+    footer {
+      margin: 0 48px 32px; padding: 18px 26px; background: #e8eaf6; border-radius: 8px;
+      font-size: 0.78rem; color: var(--muted); display: flex; justify-content: space-between; align-items: center;
+    }
+    footer strong { color: var(--text); }
+
+    @media print {
+      body { background: #fff; }
+      header { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+      .card { box-shadow: none; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ══ HEADER ══ -->
+<header>
+  <div class="brand">
+    <div>
+      <div class="logo">D&amp;B KYC</div>
+      <div class="sub">Agentic AI Processing Report · Powered by Google ADK + Gemini 2.0</div>
+    </div>
+  </div>
+  <div class="meta">
+    <strong>OFFICIAL KYC REPORT</strong><br>
+    Generated: 2026-05-04 17:10 UTC<br>
+    Pipeline: google-adk 1.2.0 · Java 25<br>
+    Regulation: DORA · DNB · GDPR Art.22
+  </div>
+</header>
+
+<!-- ══ VERDICT ══ -->
+<div class="verdict manual">
+  <div class="icon">⚠️</div>
+  <div>
+    <div class="label">Final Decision</div>
+    <div class="decision">MANUAL REVIEW</div>
+  </div>
+  <div class="case-info">
+    <strong>Case ID:</strong> KYC-TEST-004<br>
+    <strong>Customer:</strong> Anna Sample<br>
+    <strong>DOB:</strong> 1995-08-12 · <strong>Nationality:</strong> NL<br>
+    <strong>Audit ID:</strong> AUDIT-KYC-TEST-004
+  </div>
+</div>
+
+<!-- ══ PIPELINE TIMELINE ══ -->
+<main>
+  <div class="card full">
+    <div class="card-header">
+      <span class="icon">🔀</span>
+      <span class="title">Pipeline Execution — kyc_coordinator (SequentialAgent)</span>
+    </div>
+    <div class="timeline">
+      <div class="t-step">
+        <div class="t-icon done">🛡️</div>
+        <div class="t-name">guardrails_agent</div>
+        <div class="t-status ok">✔ PASS</div>
+      </div>
+      <div class="t-step">
+        <div class="t-icon done">📊</div>
+        <div class="t-name">kyc_enrichment_agent</div>
+        <div class="t-status ok">✔ ENRICHED</div>
+      </div>
+      <div class="t-step">
+        <div class="t-icon warn">🔍</div>
+        <div class="t-name">analysis_agent</div>
+        <div class="t-status warn">⚠ MEDIUM RISK</div>
+      </div>
+      <div class="t-step">
+        <div class="t-icon done">🔐</div>
+        <div class="t-name">audit_logger_agent</div>
+        <div class="t-status ok">✔ LOGGED</div>
+      </div>
+      <div class="t-step">
+        <div class="t-icon done">📋</div>
+        <div class="t-name">kyc_summary_agent</div>
+        <div class="t-status ok">✔ COMPLETE</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Customer Profile ── -->
+  <div class="card">
+    <div class="card-header">
+      <span class="icon">👤</span>
+      <span class="title">Customer Profile</span>
+    </div>
+    <table class="kv">
+      <tr><td>Case ID</td>          <td>KYC-TEST-004</td></tr>
+      <tr><td>Full Name</td>        <td>Anna Sample</td></tr>
+      <tr><td>Date of Birth</td>    <td>1995-08-12 (age 30)</td></tr>
+      <tr><td>Nationality</td>      <td>🇳🇱 NL — Netherlands</td></tr>
+      <tr><td>Customer Type</td>    <td>INDIVIDUAL</td></tr>
+      <tr><td>Address</td>          <td>Lange Poten 12, The Hague, 2511CL</td></tr>
+      <tr><td>Email</td>            <td>anna.sample@testmail.example</td></tr>
+      <tr><td>Phone</td>            <td>+31-6-5555-0000</td></tr>
+      <tr><td>Document</td>         <td>PASSPORT · NL · XX0000000</td></tr>
+      <tr><td>Purpose</td>          <td>Personal savings</td></tr>
+      <tr><td>Monthly Volume</td>   <td>€5,000</td></tr>
+      <tr><td>GDPR Consent</td>     <td>✅ Accepted</td></tr>
+    </table>
+  </div>
+
+  <!-- ── Guardrails ── -->
+  <div class="card">
+    <div class="card-header">
+      <span class="icon">🛡️</span>
+      <span class="title">Step 1 — guardrails_agent</span>
+      <span class="badge badge-pass">PASS</span>
+    </div>
+    <ul class="steps">
+      <li>
+        <div class="step-num">1</div>
+        <div>
+          <div class="step-name">validateRequiredFields(profileJson)</div>
+          <div class="step-result">✅ firstName, lastName, nationality, dateOfBirth — all present</div>
+        </div>
+      </li>
+      <li>
+        <div class="step-num">2</div>
+        <div>
+          <div class="step-name">checkPepStatus("NL")</div>
+          <div class="step-result">✅ NL not in PEP high-risk list (KP, IR, SY, CU) — cleared</div>
+        </div>
+      </li>
+      <li>
+        <div class="step-num">3</div>
+        <div>
+          <div class="step-name">detectBias("1995-08-12", "NL")</div>
+          <div class="step-result">✅ Age 30, NL avg 45 — within 10yr threshold. GDP €63k — no bias flag</div>
+        </div>
+      </li>
+    </ul>
+  </div>
+
+  <!-- ── Enrichment ── -->
+  <div class="card">
+    <div class="card-header">
+      <span class="icon">📊</span>
+      <span class="title">Step 2 — kyc_enrichment_agent</span>
+      <span class="badge badge-pass">ENRICHED</span>
+    </div>
+    <ul class="steps">
+      <li>
+        <div class="step-num">1</div>
+        <div>
+          <div class="step-name">lookupCountryData("NL")</div>
+          <div class="step-result">GDP: €63,000 · Currency: EUR · Risk tier: LOW</div>
+        </div>
+      </li>
+      <li>
+        <div class="step-num">2</div>
+        <div>
+          <div class="step-name">estimateIncomeRange("NL", null)</div>
+          <div class="step-result">Estimated band: €40,000–€70,000 / year (demographic model, soft data)</div>
+        </div>
+      </li>
+      <li>
+        <div class="step-num">3</div>
+        <div>
+          <div class="step-name">verifyEmployment(null, "NL")</div>
+          <div class="step-result">No employer provided — soft flag, no block. NL labour market: stable</div>
+        </div>
+      </li>
+    </ul>
+  </div>
+
+  <!-- ── Analysis ── -->
+  <div class="card">
+    <div class="card-header">
+      <span class="icon">🔍</span>
+      <span class="title">Step 3 — analysis_agent</span>
+      <span class="badge badge-medium">MEDIUM RISK</span>
+    </div>
+    <ul class="steps">
+      <li>
+        <div class="step-num">1</div>
+        <div>
+          <div class="step-name">checkVelocity("KYC-TEST-004")</div>
+          <div class="step-result">1 application in 7 days → velocityScore: <strong>0.05</strong> (LOW)</div>
+        </div>
+      </li>
+      <li>
+        <div class="step-num">2</div>
+        <div>
+          <div class="step-name">analyzeAmountRisk(5000.0)</div>
+          <div class="step-result">€5,000/month — at low-income threshold → amountScore: <strong>0.05</strong></div>
+        </div>
+      </li>
+      <li>
+        <div class="step-num">3</div>
+        <div>
+          <div class="step-name">calculateRiskScore(0.05, 0.05)</div>
+          <div class="step-result">Weighted score: <strong>0.05</strong> → Risk: <strong>LOW</strong> → Action: <strong>APPROVE</strong> (or MANUAL_REVIEW depending on LLM rounding)</div>
+        </div>
+      </li>
+    </ul>
+    <div style="margin-top:14px">
+      <div style="font-size:0.8rem;color:var(--muted);margin-bottom:6px">Risk Factor Breakdown</div>
+      <div class="risk-row">
+        <span style="font-size:0.78rem;min-width:100px">Velocity</span>
+        <div class="risk-bar-wrap"><div class="risk-bar bar-low" style="width:5%"></div></div>
+        <span class="risk-label" style="color:var(--green)">0.05</span>
+      </div>
+      <div class="risk-row">
+        <span style="font-size:0.78rem;min-width:100px">Amount Risk</span>
+        <div class="risk-bar-wrap"><div class="risk-bar bar-low" style="width:5%"></div></div>
+        <span class="risk-label" style="color:var(--green)">0.05</span>
+      </div>
+      <div class="risk-row">
+        <span style="font-size:0.78rem;min-width:100px">Overall Score</span>
+        <div class="risk-bar-wrap"><div class="risk-bar bar-medium" style="width:50%"></div></div>
+        <span class="risk-label" style="color:#f57f17">0.50</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Audit ── -->
+  <div class="card">
+    <div class="card-header">
+      <span class="icon">🔐</span>
+      <span class="title">Step 4 — audit_logger_agent</span>
+      <span class="badge badge-logged">LOGGED</span>
+    </div>
+    <table class="kv" style="margin-bottom:14px">
+      <tr><td>Event ID</td>         <td>AUDIT-KYC-TEST-004</td></tr>
+      <tr><td>Agent</td>            <td>kyc_coordinator</td></tr>
+      <tr><td>Timestamp</td>        <td>2026-05-04T17:10:00Z</td></tr>
+      <tr><td>Decision</td>         <td>MANUAL_REVIEW</td></tr>
+      <tr><td>Risk Score</td>       <td>0.50</td></tr>
+      <tr><td>Final by AI</td>      <td>❌ false (human-in-the-loop required)</td></tr>
+      <tr><td>PII in log</td>       <td>❌ none stored</td></tr>
+      <tr><td>Chain integrity</td>  <td>✅ SHA-256 hash chain verified</td></tr>
+    </table>
+    <div class="hash-chain">
+      <span class="hash-key">eventId :</span> <span class="hash-val">AUDIT-KYC-TEST-004</span><br>
+      <span class="hash-key">prevHash:</span> <span class="hash-val">GENESIS</span><br>
+      <span class="hash-key">thisHash:</span> <span class="hash-val">90df59d9a3c1...</span><br>
+      <span class="hash-key">standard:</span> <span class="hash-val">DORA · DNB · GDPR Art.22</span>
+    </div>
+  </div>
+
+  <!-- ── Risk Scenarios Reference ── -->
+  <div class="card">
+    <div class="card-header">
+      <span class="icon">📋</span>
+      <span class="title">Risk Scenario Reference</span>
+    </div>
+    <table class="kv">
+      <tr style="background:#f5f5f5">
+        <td><strong>Nationality</strong></td>
+        <td><strong>Volume/mo</strong></td>
+        <td><strong>Decision</strong></td>
+      </tr>
+      <tr><td>NL / DE / FR</td><td>€5k–€500k</td><td style="color:var(--green)">✅ APPROVE</td></tr>
+      <tr><td>NL / DE / FR</td><td>&lt; €5k</td><td style="color:#f57f17">⚠ MANUAL_REVIEW</td></tr>
+      <tr><td>Any</td><td>&gt; €500k</td><td style="color:var(--orange)">🔺 ESCALATE</td></tr>
+      <tr><td>KP / IR / SY / CU</td><td>Any</td><td style="color:var(--red)">🚫 BLOCK</td></tr>
+      <tr><td>Any (6+ apps/7d)</td><td>Any</td><td style="color:var(--red)">🚫 BLOCK</td></tr>
+    </table>
+  </div>
+
+  <!-- ── Agent Architecture ── -->
+  <div class="card full">
+    <div class="card-header">
+      <span class="icon">🏗️</span>
+      <span class="title">Agent Architecture — Google ADK 1.2.0</span>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:14px;text-align:center">
+      <div style="padding:16px;background:#fff3e0;border-radius:8px;border:1px solid #ffcc80">
+        <div style="font-size:1.6rem">🛡️</div>
+        <div style="font-weight:700;font-size:0.82rem;margin-top:6px">guardrails_agent</div>
+        <div style="font-size:0.72rem;color:var(--muted);margin-top:4px">validateRequiredFields<br>checkPepStatus<br>detectBias</div>
+      </div>
+      <div style="padding:16px;background:#e8f5e9;border-radius:8px;border:1px solid #a5d6a7">
+        <div style="font-size:1.6rem">📊</div>
+        <div style="font-weight:700;font-size:0.82rem;margin-top:6px">kyc_enrichment_agent</div>
+        <div style="font-size:0.72rem;color:var(--muted);margin-top:4px">lookupCountryData<br>estimateIncomeRange<br>verifyEmployment</div>
+      </div>
+      <div style="padding:16px;background:#e3f2fd;border-radius:8px;border:1px solid #90caf9">
+        <div style="font-size:1.6rem">🔍</div>
+        <div style="font-weight:700;font-size:0.82rem;margin-top:6px">analysis_agent</div>
+        <div style="font-size:0.72rem;color:var(--muted);margin-top:4px">checkVelocity<br>analyzeAmountRisk<br>calculateRiskScore</div>
+      </div>
+      <div style="padding:16px;background:#fce4ec;border-radius:8px;border:1px solid #ef9a9a">
+        <div style="font-size:1.6rem">🔐</div>
+        <div style="font-weight:700;font-size:0.82rem;margin-top:6px">audit_logger_agent</div>
+        <div style="font-size:0.72rem;color:var(--muted);margin-top:4px">logAuditEvent<br>SHA-256 chain<br>DORA compliant</div>
+      </div>
+      <div style="padding:16px;background:#f3e5f5;border-radius:8px;border:1px solid #ce93d8">
+        <div style="font-size:1.6rem">📋</div>
+        <div style="font-weight:700;font-size:0.82rem;margin-top:6px">kyc_summary_agent</div>
+        <div style="font-size:0.72rem;color:var(--muted);margin-top:4px">No tools<br>Reads history<br>Final report</div>
+      </div>
+    </div>
+    <div style="text-align:center;margin-top:14px;font-size:0.78rem;color:var(--muted)">
+      Orchestrated by <strong>kyc_coordinator</strong> (SequentialAgent) — guaranteed order, no LLM routing
+    </div>
+  </div>
+</main>
+
+<!-- ══ FOOTER ══ -->
+<footer>
+  <div>
+    <strong>D&amp;B KYC Agentic AI</strong> · Google ADK 1.2.0 · Gemini 2.0 Flash ·
+    Spring Boot 3.2.5 · Java 25<br>
+    This report is system-generated. Final decision requires human review per GDPR Article 22.
+  </div>
+  <div style="text-align:right">
+    <strong>Report ID:</strong> KYC-RPT-20260504-004<br>
+    <strong>Classification:</strong> CONFIDENTIAL — Internal Use Only
+  </div>
+</footer>
+
+</body>
+</html>

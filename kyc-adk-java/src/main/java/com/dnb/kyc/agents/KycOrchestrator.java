@@ -3,6 +3,8 @@ package com.dnb.kyc.agents;
 import com.dnb.kyc.model.*;
 import com.dnb.kyc.agents.guardrails.enrichment.*;
 import com.google.adk.agents.LlmAgent;
+import com.google.adk.agents.SequentialAgent;
+import com.google.adk.agents.BaseAgent;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -32,7 +34,8 @@ public class KycOrchestrator {
     private final AnalysisAgent analysisAgent;
     private final AuditLoggerAgent auditLogger;
     
-    private final LlmAgent coordinatorAgent;
+    private final LlmAgent summaryAgent;
+    private final SequentialAgent coordinatorAgent;
 
     public KycOrchestrator(
             GuardrailsAgent guardrailsAgent,
@@ -47,32 +50,43 @@ public class KycOrchestrator {
         this.analysisAgent = analysisAgent;
         this.auditLogger = auditLogger;
         
-        // Build the coordinator agent that orchestrates the sub-agents
-        this.coordinatorAgent = LlmAgent.builder()
-            .name("kyc_coordinator")
-            .description("Coordinates KYC processing across specialized agents")
+        // Build the summary agent — runs last to produce the final structured report
+        this.summaryAgent = LlmAgent.builder()
+            .name("kyc_summary_agent")
+            .description("Produces the final KYC decision report after all agents have run")
             .model("gemini-2.0-flash")
             .instruction("""
-                You are the KYC (Know Your Customer) Coordinator Agent.
-                Your role is to orchestrate the KYC verification process by coordinating
-                with specialized sub-agents:
+                You are the KYC Summary Agent. You run AFTER all other KYC agents have completed.
                 
-                1. Guardrails Agent: Validates compliance and detects bias
-                2. Enrichment Agent: Completes missing data from external sources
-                3. Analysis Agent: Performs fraud detection and risk scoring
+                Read the full conversation history above and produce a final structured summary.
+                Do NOT call any tools. Do NOT ask questions. Just summarize the results.
                 
-                Process flow:
-                1. First, run guardrails validation
-                2. If validation passes, enrich the profile data
-                3. Perform fraud analysis on the enriched profile
-                4. Generate final decision based on all agent outputs
+                Return EXACTLY this format:
                 
-                Ensure fair treatment and thorough documentation for DORA compliance.
+                ✅ KYC PROCESSING COMPLETE
+                ─────────────────────────────────
+                Case ID    : [kycCaseId from input]
+                Customer   : [firstName lastName from input]
+                ─────────────────────────────────
+                🛡️ GUARDRAILS : [PASS or FAIL] — [brief reason from guardrails_agent output]
+                📊 ENRICHMENT : [key fields enriched from kyc_enrichment_agent output]
+                🔍 ANALYSIS   : Score [weightedScore] | Risk [riskLevel] | → [recommendedAction]
+                🔐 AUDIT      : LOGGED — [eventId from audit_logger_agent output]
+                ─────────────────────────────────
+                FINAL DECISION: [recommendedAction from analysis_agent]
                 """)
+            .build();
+
+        // SequentialAgent runs all agents in strict order — no LLM routing needed
+        this.coordinatorAgent = SequentialAgent.builder()
+            .name("kyc_coordinator")
+            .description("Runs the full KYC pipeline: Guardrails → Enrichment → Analysis → Audit → Summary")
             .subAgents(
                 guardrailsAgent.getLlmAgent(),
                 enrichmentAgent.getLlmAgent(),
-                analysisAgent.getLlmAgent()
+                analysisAgent.getLlmAgent(),
+                auditLogger.getLlmAgent(),
+                summaryAgent
             )
             .build();
     }
@@ -308,7 +322,7 @@ public class KycOrchestrator {
         return summary.toString();
     }
 
-    public LlmAgent getCoordinatorAgent() {
+    public SequentialAgent getCoordinatorAgent() {
         return coordinatorAgent;
     }
 }

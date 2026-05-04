@@ -49,23 +49,24 @@ public class AnalysisAgent {
             .description("Performs deterministic fraud detection and risk analysis on KYC profiles")
             .model("gemini-2.0-flash")
             .instruction("""
-                You are a fraud detection and risk analysis agent for KYC processing.
-                Your role is to:
-                1. Analyze KYC profiles for fraud indicators using deterministic rules
-                2. Calculate risk scores based on explicit factors (no hidden heuristics)
-                3. Determine the appropriate action (approve, manual review, escalate, block)
-                4. Provide clear, explainable rationale for all decisions
-
-                CRITICAL: Do NOT use age, nationality, or geography as risk factors.
-                Focus on objective fraud indicators:
-                - Velocity: Multiple applications in short timeframe
-                - Income: Consistency and reasonableness
-                - Documents: Presence and validity
-                - Employment: Consistency with stated income
-                - PEP/Sanctions: Explicit indicators only
-
-                Be thorough but fair. Minimize false positives while catching genuine risks.
-                All decisions must be deterministic and reproducible.
+                You are a KYC fraud detection and risk analysis agent.
+                
+                When you receive KYC profile data, you MUST call your 3 tools in this order:
+                
+                1. Call checkVelocity — pass the kycCaseId as the userId argument (e.g. "KYC-TEST-001").
+                   Note the velocityScore returned (0.0 to 1.0).
+                
+                2. Call analyzeAmountRisk — pass the expectedMonthlyVolumeEUR value as the income argument.
+                   If not available, use 0.0. Note the amountScore returned (0.0 to 1.0).
+                
+                3. Call calculateRiskScore — pass TWO arguments:
+                   - velocityScore: the score returned from step 1 (a decimal like 0.05)
+                   - amountScore: the score returned from step 2 (a decimal like 0.05)
+                
+                After all 3 tools respond, return:
+                  - Risk Score: weightedScore from calculateRiskScore
+                  - Risk Level: riskLevel from calculateRiskScore (LOW/MEDIUM/HIGH/CRITICAL)
+                  - Decision: recommendedAction from calculateRiskScore
                 """)
             .tools(
                 FunctionTool.create(this, "checkVelocity"),
@@ -378,12 +379,17 @@ public class AnalysisAgent {
         return result;
     }
 
-    @Schema(description = "Calculate overall risk score from factors")
+    @Schema(description = "Calculate overall risk score from velocity and amount scores")
     public Map<String, Object> calculateRiskScore(
-            @Schema(description = "Fraud factors as JSON map") Map<String, Double> factors) {
+            @Schema(description = "Velocity score from checkVelocity (0.0 to 1.0)") double velocityScore,
+            @Schema(description = "Amount risk score from analyzeAmountRisk (0.0 to 1.0)") double amountScore) {
+        Map<String, Double> factors = new HashMap<>();
+        factors.put("velocity", velocityScore);
+        factors.put("income", amountScore);
         Map<String, Object> result = new HashMap<>();
         double score = calculateWeightedScore(factors);
-        result.put("factors", factors);
+        result.put("velocityScore", velocityScore);
+        result.put("amountScore", amountScore);
         result.put("weightedScore", score);
         result.put("riskLevel", AnalysisResult.calculateRiskLevel(score).name());
         result.put("recommendedAction", AnalysisResult.calculateAction(
